@@ -2,6 +2,8 @@
 import { Inter } from 'next/font/google'
 import './globals.css'
 import {AbstraxionProvider} from "@burnt-labs/abstraxion";
+import { CrossmintProvider } from "@crossmint/client-sdk-react-ui";
+import { Abstraxion } from "@burnt-labs/abstraxion";
 
 import "@burnt-labs/abstraxion/dist/index.css";
 import "@burnt-labs/ui/dist/index.css";
@@ -14,6 +16,11 @@ const treasuryConfig = {
   restUrl: process.env.NEXT_PUBLIC_REST_URL || "https://api.xion-testnet-2.burnt.com",
 };
 
+const crossmintApiKey = process.env.NEXT_PUBLIC_CROSSMINT_API_KEY ?? "";
+if (!crossmintApiKey) {
+  throw new Error("NEXT_PUBLIC_CROSSMINT_API_KEY is not set");
+}
+
 export default function RootLayout({
   children,
 }: {
@@ -22,10 +29,12 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className={inter.className}>
-        <AbstraxionProvider
-          config={treasuryConfig}>
-          {children}
-        </AbstraxionProvider>
+        <CrossmintProvider apiKey={crossmintApiKey}>
+          <AbstraxionProvider config={treasuryConfig}>
+            <Abstraxion onClose={() => {}} />
+            {children}
+          </AbstraxionProvider>
+        </CrossmintProvider>
       </body>
     </html>
   )
