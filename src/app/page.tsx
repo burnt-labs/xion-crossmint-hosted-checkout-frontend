@@ -12,6 +12,7 @@ import { Button } from "@burnt-labs/ui";
 import "@burnt-labs/ui/dist/index.css";
 import type { ExecuteResult } from "@cosmjs/cosmwasm-stargate";
 import { CrossmintHostedCheckout } from "@crossmint/client-sdk-react-ui";
+import staticNfts from '../../staticNfts.json';
 
 const contractAddress = process.env.NEXT_PUBLIC_CONTRACT_ADDRESS || "";
 const clientApiKey = process.env.NEXT_PUBLIC_CLIENT_API_KEY as string;
@@ -65,7 +66,7 @@ function CollectionPreview({
             height={imageSize}
             className="rounded mb-2 object-contain"
           />
-          <div className="font-bold text-lg mb-1">{title}</div>
+          <div className="text-black font-bold text-lg mb-1">{title}</div>
           <div className="text-gray-600 mb-1">{description}</div>
           <div className="text-black font-semibold mb-2">{price}</div>
         </div>
@@ -73,42 +74,6 @@ function CollectionPreview({
     </div>
   );
 }
-
-// Static NFT data (for purchase grid)
-const staticNfts = [
-  {
-    "id": "145a48b4-4fb9-48d0-9b82-2daa570c7aba",
-    "metadata": {
-      "image": "ipfs://QmTBAVuJ4srM1LxLxc6MhgKEV85MFavLbdNCyhJxavWhNT",
-      "name": "Di Emperor",
-      "description": "This is the emperor",
-      "attributes": []
-    },
-    "onChain": {
-      "status": "success",
-      "owner": "xion1gtnf2k2cmuff47c6lmyxlk2gmwfmlufvpxegu869v0lnsl0s4fxs65yjcx",
-      "chain": "xion",
-      "contractAddress": "xion1dgl3wxu4ccg57clu3jgtulegamaxjkwre8eqeyp5qxm7mnrvtkqqqradh7",
-      "tokenId": "037097ac-3500-4b11-8da5-b3d32da02df3"
-    }
-  },
-  {
-    "id": "8a951752-43ce-4483-b5f3-4ba2760be951",
-    "metadata": {
-      "image": "ipfs://QmXRqATwBQPVUfBr5LrMcmL4JBbiuiNMmP7bFr4UNqDw6r",
-      "name": "Apple",
-      "description": "This is an Apple",
-      "attributes": []
-    },
-    "onChain": {
-      "status": "success",
-      "owner": "xion1gtnf2k2cmuff47c6lmyxlk2gmwfmlufvpxegu869v0lnsl0s4fxs65yjcx",
-      "chain": "xion",
-      "contractAddress": "xion1dgl3wxu4ccg57clu3jgtulegamaxjkwre8eqeyp5qxm7mnrvtkqqqradh7",
-      "tokenId": "ae93f9f2-a981-40ff-b68e-59d7a765faf5"
-    }
-  }
-];
 
 export default function Page(): JSX.Element {
   // Abstraxion hooks
@@ -133,6 +98,9 @@ export default function Page(): JSX.Element {
   const [nftsLoading, setNftsLoading] = useState(false);
   const [nftsError, setNftsError] = useState<string>("");
   const [copied, setCopied] = useState(false);
+  const [cart, setCart] = useState<string[]>([]);
+  const [showCheckout, setShowCheckout] = useState(false);
+  const [profileMenuOpen, setProfileMenuOpen] = useState(false);
 
   // Add effect to fetch user's JSON data when they log in
   useEffect(() => {
@@ -352,10 +320,45 @@ export default function Page(): JSX.Element {
     fetchNfts();
   }, [queryClient, contractAddress]);
 
+  // Cart logic
+  const toggleCart = (nftId: string) => {
+    setCart((prev) =>
+      prev.includes(nftId) ? prev.filter((id) => id !== nftId) : [...prev, nftId]
+    );
+  };
+  const selectedNfts = staticNfts.filter((nft) => cart.includes(nft.id));
+
+  // Header cart button
+  const CartButton = () => (
+    <button
+      className="relative flex items-center bg-gray-200 hover:bg-gray-300 rounded px-3 py-1 mr-2"
+      onClick={() => setShowCheckout((v) => !v)}
+      disabled={cart.length === 0}
+      title={cart.length === 0 ? 'Add NFTs to cart to checkout' : 'Checkout'}
+    >
+      <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="none" viewBox="0 0 24 24" className="text-gray-800"><path d="M6 6h15l-1.5 9h-13z" stroke="currentColor" strokeWidth="2" fill="none"/><circle cx="9" cy="21" r="1" fill="currentColor"/><circle cx="18" cy="21" r="1" fill="currentColor"/></svg>
+      <span className="ml-1 text-xs font-semibold text-gray-800">{cart.length}</span>
+    </button>
+  );
+
+  // Close dropdown on outside click
+  useEffect(() => {
+    if (!profileMenuOpen) return;
+    function handleClick(e: MouseEvent) {
+      const menu = document.getElementById("profile-menu");
+      if (menu && !menu.contains(e.target as Node)) {
+        setProfileMenuOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, [profileMenuOpen]);
+
   return (
     <>
-      {/* Top-right header for connect/disconnect */}
+      {/* Top-right header for connect/disconnect and cart */}
       <div className="fixed top-4 right-4 z-50 flex items-center gap-2 bg-white/80 rounded-lg shadow px-4 py-2">
+        <CartButton />
         {account?.bech32Address ? (
           <>
             <span className="font-mono text-xs text-gray-700 truncate max-w-[120px]">{account.bech32Address}</span>
@@ -380,6 +383,27 @@ export default function Page(): JSX.Element {
             >
               Disconnect
             </button>
+            {/* Profile dropdown */}
+            <div className="relative">
+              <button
+                className="ml-2 flex items-center justify-center w-8 h-8 rounded-full bg-gray-200 hover:bg-gray-300 focus:outline-none"
+                onClick={() => setProfileMenuOpen((v) => !v)}
+                title="Profile"
+              >
+                <svg className="w-6 h-6 text-gray-700" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-2.21 3.58-4 8-4s8 1.79 8 4"/></svg>
+              </button>
+              {profileMenuOpen && (
+                <div id="profile-menu" className="absolute right-0 mt-2 w-40 bg-white rounded-lg shadow-lg py-2 z-50 border">
+                  <Link
+                    href="/my-nfts"
+                    className="block px-4 py-2 text-gray-800 hover:bg-gray-100 text-sm"
+                    onClick={() => setProfileMenuOpen(false)}
+                  >
+                    My NFTs
+                  </Link>
+                </div>
+              )}
+            </div>
           </>
         ) : (
           <button
@@ -390,8 +414,46 @@ export default function Page(): JSX.Element {
           </button>
         )}
       </div>
+      {/* Checkout modal/dropdown */}
+      {showCheckout && cart.length > 0 && (
+        <div className="fixed top-16 right-4 z-50 bg-white rounded-lg shadow-lg p-4 w-80">
+          <div className="mb-2 font-bold text-gray-800">Checkout ({cart.length} NFT{cart.length > 1 ? 's' : ''})</div>
+          <CrossmintHostedCheckout
+            className="w-full"
+            lineItems={selectedNfts.map((nft) => ({
+              collectionLocator: `crossmint:${collectionId}`,
+              callData: {
+                totalPrice: "0.003",
+                id: `${nft.id}`,
+                amount: 1,
+              },
+            }))}
+            appearance={{
+              display: "popup",
+              overlay: { enabled: true },
+              theme: { button: "dark", checkout: "light" },
+            }}
+            payment={{
+              crypto: {
+                enabled: true,
+                defaultChain: "base-sepolia",
+                defaultCurrency: "usdc",
+              },
+              fiat: {
+                enabled: true,
+                defaultCurrency: "usd",
+              },
+              receiptEmail: "receipt@crossmint.com",
+            }}
+            recipient={{
+              walletAddress: account?.bech32Address,
+            }}
+            locale="en-US"
+          />
+        </div>
+      )}
       <main className="m-auto flex min-h-screen max-w-6xl flex-col items-center justify-center gap-4 p-4">
-        <h1 className="text-2xl font-bold tracking-tighter text-white">NFT Collection</h1><br /><br />
+        <h1 className="text-2xl font-bold tracking-tighter text-white">XION NFT Collection</h1><br /><br />
         {loading && <div className="text-white">Loading NFTs...</div>}
         {nftsError && <div className="text-red-500">{nftsError}</div>}
         {account?.bech32Address ? (
@@ -405,7 +467,7 @@ export default function Page(): JSX.Element {
               const title = meta.name || `NFT #${idx + 1}`;
               const description = meta.description || "";
               return (
-                <div key={nft.id || idx} className="py-8 md:pt-4">
+                <div key={nft.id || idx} className="py-8 md:pt-4 relative">
                   <div className="bg-white rounded-2xl shadow-lg border max-w-4xl w-full gap-0">
                     <div className="flex items-center justify-center p-6">
                       <div className="rounded-l-2xl">
@@ -417,43 +479,12 @@ export default function Page(): JSX.Element {
                           imageAlt={title}
                           description={description}
                         />
-                        <div className="flex items-center w-full justify-center">
-                          <CrossmintHostedCheckout
-                            className="w-full"
-                            lineItems={{
-                              collectionLocator: `crossmint:${collectionId}${nft.id ? `:${nft.id}` : ''}`,
-                              callData: {
-                                totalPrice: "1",
-                              },
-                            }}
-                            appearance={{
-                              display: "popup",
-                              overlay: {
-                                enabled: true,
-                              },
-                              theme: {
-                                button: "dark",
-                                checkout: "light",
-                              },
-                            }}
-                            payment={{
-                              crypto: {
-                                enabled: true,
-                                defaultChain: "base-sepolia",
-                                defaultCurrency: "usdc",
-                              },
-                              fiat: {
-                                enabled: true,
-                                defaultCurrency: "usd",
-                              },
-                              receiptEmail: "receipt@crossmint.com",
-                            }}
-                            recipient={{
-                              walletAddress: account.bech32Address,
-                            }}
-                            locale="en-US"
-                          />
-                        </div>
+                        <button
+                          className={`absolute top-2 right-2 px-3 py-1 rounded text-xs font-semibold ${cart.includes(nft.id) ? 'bg-red-500 text-white' : 'bg-green-500 text-white'}`}
+                          onClick={() => toggleCart(nft.id)}
+                        >
+                          {cart.includes(nft.id) ? 'Remove from Cart' : 'Add to Cart'}
+                        </button>
                       </div>
                     </div>
                   </div>
