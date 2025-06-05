@@ -101,26 +101,8 @@ export default function Page(): JSX.Element {
   const [cart, setCart] = useState<string[]>([]);
   const [showCheckout, setShowCheckout] = useState(false);
   const [profileMenuOpen, setProfileMenuOpen] = useState(false);
-
-  // Add effect to fetch user's JSON data when they log in
-  useEffect(() => {
-    const fetchUserData = async () => {
-      if (account?.bech32Address && queryClient) {
-        try {
-          const response = await queryClient.queryContractSmart(contractAddress, {
-            get_value_by_user: { address: account.bech32Address }
-          });
-          if (response) {
-            setJsonInput(response);
-          }
-        } catch (error) {
-          console.error("Error fetching user data:", error);
-        }
-      }
-    };
-
-    fetchUserData();
-  }, [account?.bech32Address, queryClient]);
+  const [collections, setCollections] = useState<any[]>([]);
+  const [amounts, setAmounts] = useState<Record<string, number>>({});
 
   const blockExplorerUrl = `https://www.mintscan.io/xion-testnet/tx/${executeResult?.transactionHash}`;
 
@@ -354,6 +336,45 @@ export default function Page(): JSX.Element {
     return () => document.removeEventListener("mousedown", handleClick);
   }, [profileMenuOpen]);
 
+  // Fetch collection info from the contract
+  useEffect(() => {
+    if (!queryClient || !contractAddress) return;
+    async function fetchCollectionInfo() {
+      try {
+        const collectionInfo = await queryClient!.queryContractSmart(contractAddress, {
+          get_collection_info_and_extension: {},
+        });
+        console.log("Collection Info:", collectionInfo);
+        let imageUrl = collectionInfo.extension?.image || "";
+        if (imageUrl.startsWith("ipfs://")) {
+          imageUrl = `https://ipfs.io/ipfs/${imageUrl.replace("ipfs://", "")}`;
+        }
+        setCollections([{
+          id: contractAddress,
+          metadata: {
+            name: collectionInfo.name,
+            symbol: collectionInfo.symbol,
+            description: collectionInfo.extension?.description || "",
+            image: imageUrl,
+          },
+        }]);
+      } catch (err: any) {
+        console.error("Error fetching collection info:", err);
+      }
+    }
+    fetchCollectionInfo();
+  }, [queryClient, contractAddress]);
+
+  const handleAmountChange = (collectionId: string, value: string) => {
+    console.log("Amount changed:", collectionId, value);
+    setAmounts((prev) => ({ ...prev, [collectionId]: value === "" ? 0 : parseInt(value) || 0 }));
+  };
+
+  const handleAddToCart = (collection: any) => {
+    const amount = amounts[collection.id] || 1;
+    setCart((prev) => [...prev, collection.id]);
+  };
+
   return (
     <>
       {/* Top-right header for connect/disconnect and cart */}
@@ -424,8 +445,7 @@ export default function Page(): JSX.Element {
               collectionLocator: `crossmint:${collectionId}`,
               callData: {
                 totalPrice: "0.003",
-                id: `${nft.id}`,
-                amount: 1,
+                amount: amounts[nft.id] || 1,
               },
             }))}
             appearance={{
@@ -454,46 +474,46 @@ export default function Page(): JSX.Element {
       )}
       <main className="m-auto flex min-h-screen max-w-6xl flex-col items-center justify-center gap-4 p-4">
         <h1 className="text-2xl font-bold tracking-tighter text-white">XION NFT Collection</h1><br /><br />
-        {loading && <div className="text-white">Loading NFTs...</div>}
+        {loading && <div className="text-white">Loading collections...</div>}
         {nftsError && <div className="text-red-500">{nftsError}</div>}
         {account?.bech32Address ? (
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6 w-full">
-            {staticNfts.map((nft, idx) => {
-              const meta: any = nft.metadata || {};
-              let imageUrl = meta.image;
-              if (imageUrl && imageUrl.startsWith("ipfs://")) {
-                imageUrl = `https://ipfs.io/ipfs/${imageUrl.replace("ipfs://", "")}`;
-              }
-              const title = meta.name || `NFT #${idx + 1}`;
-              const description = meta.description || "";
-              return (
-                <div key={nft.id || idx} className="py-8 md:pt-4 relative">
-                  <div className="bg-white rounded-2xl shadow-lg border max-w-4xl w-full gap-0">
-                    <div className="flex items-center justify-center p-6">
-                      <div className="rounded-l-2xl">
-                        <CollectionPreview
-                          title={title}
-                          price={"$1.00"}
-                          imageUrl={imageUrl || "/ledger-pass.svg"}
-                          imageSize={200}
-                          imageAlt={title}
-                          description={description}
+            {collections.map((collection) => (
+              <div key={collection.id} className="py-8 md:pt-4 relative">
+                <div className="bg-white rounded-2xl shadow-lg border max-w-4xl w-full gap-0">
+                  <div className="flex items-center justify-center p-6">
+                    <div className="rounded-l-2xl">
+                      <CollectionPreview
+                        title={collection.metadata.name}
+                        price={"$1.00"}
+                        imageUrl={collection.metadata.image || "/ledger-pass.svg"}
+                        imageSize={200}
+                        imageAlt={collection.metadata.name}
+                        description={collection.metadata.description}
+                      />
+                      <div className="mt-4">
+                        <input
+                          type="number"
+                          min="1"
+                          value={amounts[collection.id] || 1}
+                          onChange={(e) => handleAmountChange(collection.id, e.target.value)}
+                          className="w-20 px-2 py-1 border rounded text-black"
                         />
                         <button
-                          className={`absolute top-2 right-2 px-3 py-1 rounded text-xs font-semibold ${cart.includes(nft.id) ? 'bg-red-500 text-white' : 'bg-green-500 text-white'}`}
-                          onClick={() => toggleCart(nft.id)}
+                          className="ml-2 bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded text-xs font-semibold"
+                          onClick={() => handleAddToCart(collection)}
                         >
-                          {cart.includes(nft.id) ? 'Remove from Cart' : 'Add to Cart'}
+                          Add to Cart
                         </button>
                       </div>
                     </div>
                   </div>
                 </div>
-              );
-            })}
+              </div>
+            ))}
           </div>
         ) : (
-          <div className="text-white text-lg mt-8">Please connect your wallet to view and purchase NFTs.</div>
+          <div className="text-white text-lg mt-8">Please connect your wallet to view and purchase collections.</div>
         )}
       </main>
     </>

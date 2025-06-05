@@ -49,6 +49,7 @@ export default function MyNftsPage() {
   const [profileMenuOpen, setProfileMenuOpen] = useState(false);
   const [, setShowModal]: [boolean, React.Dispatch<React.SetStateAction<boolean>>] = useModal();
   const profileMenuRef = useRef<HTMLDivElement>(null);
+  const [collections, setCollections] = useState<any[]>([]);
 
   // Close dropdown on outside click
   useEffect(() => {
