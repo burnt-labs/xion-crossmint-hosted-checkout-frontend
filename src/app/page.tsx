@@ -13,6 +13,18 @@ import "@burnt-labs/ui/dist/index.css";
 import type { ExecuteResult } from "@cosmjs/cosmwasm-stargate";
 import { CrossmintHostedCheckout } from "@crossmint/client-sdk-react-ui";
 import staticNfts from '../../staticNfts.json';
+import collectionsData from './collections.json';
+
+type Collection = {
+  id: string;
+  contractAddress: string;
+  metadata?: {
+    name: string;
+    symbol: string;
+    description: string;
+    image: string;
+  };
+};
 
 const contractAddress = process.env.NEXT_PUBLIC_CONTRACT_ADDRESS || "";
 const clientApiKey = process.env.NEXT_PUBLIC_CLIENT_API_KEY as string;
@@ -98,11 +110,11 @@ export default function Page(): JSX.Element {
   const [nftsLoading, setNftsLoading] = useState(false);
   const [nftsError, setNftsError] = useState<string>("");
   const [copied, setCopied] = useState(false);
+  const [collections, setCollections] = useState<Collection[]>([]);
+  const [amounts, setAmounts] = useState<Record<string, number>>({});
   const [cart, setCart] = useState<string[]>([]);
   const [showCheckout, setShowCheckout] = useState(false);
   const [profileMenuOpen, setProfileMenuOpen] = useState(false);
-  const [collections, setCollections] = useState<any[]>([]);
-  const [amounts, setAmounts] = useState<Record<string, number>>({});
 
   const blockExplorerUrl = `https://www.mintscan.io/xion-testnet/tx/${executeResult?.transactionHash}`;
 
@@ -302,13 +314,63 @@ export default function Page(): JSX.Element {
     fetchNfts();
   }, [queryClient, contractAddress]);
 
+  // Load collections from file and fetch their info
+  useEffect(() => {
+    const loadCollections = async () => {
+      try {
+        const collectionsWithInfo = await Promise.all(
+          collectionsData.collections.map(async (collection: Collection) => {
+            try {
+              if (!queryClient) return collection;
+              const collectionInfo = await queryClient.queryContractSmart(collection.contractAddress, {
+                get_collection_info_and_extension: {},
+              });
+              
+              let imageUrl = collectionInfo.extension?.image || "";
+              if (imageUrl.startsWith("ipfs://")) {
+                imageUrl = `https://ipfs.io/ipfs/${imageUrl.replace("ipfs://", "")}`;
+              }
+              
+              return {
+                ...collection,
+                metadata: {
+                  name: collectionInfo.name,
+                  symbol: collectionInfo.symbol,
+                  description: collectionInfo.extension?.description || "",
+                  image: imageUrl,
+                },
+              };
+            } catch (err) {
+              console.error(`Error fetching info for collection ${collection.id}:`, err);
+              return collection;
+            }
+          })
+        );
+        setCollections(collectionsWithInfo);
+      } catch (error) {
+        console.error('Error loading collections:', error);
+      }
+    };
+    loadCollections();
+  }, [queryClient]);
+
   // Cart logic
-  const toggleCart = (nftId: string) => {
+  const toggleCart = (collectionId: string) => {
     setCart((prev) =>
-      prev.includes(nftId) ? prev.filter((id) => id !== nftId) : [...prev, nftId]
+      prev.includes(collectionId) ? prev.filter((id) => id !== collectionId) : [...prev, collectionId]
     );
   };
-  const selectedNfts = staticNfts.filter((nft) => cart.includes(nft.id));
+
+  const handleAmountChange = (collectionId: string, value: string) => {
+    setAmounts((prev) => ({ ...prev, [collectionId]: value === "" ? 0 : parseInt(value) || 0 }));
+  };
+
+  const handleAddToCart = (collectionId: string) => {
+    const amount = amounts[collectionId] || 1;
+    if (amount > 0) {
+      setCart((prev) => [...prev, ...Array(amount).fill(collectionId)]);
+    }
+  };
 
   // Header cart button
   const CartButton = () => (
@@ -336,45 +398,6 @@ export default function Page(): JSX.Element {
     return () => document.removeEventListener("mousedown", handleClick);
   }, [profileMenuOpen]);
 
-  // Fetch collection info from the contract
-  useEffect(() => {
-    if (!queryClient || !contractAddress) return;
-    async function fetchCollectionInfo() {
-      try {
-        const collectionInfo = await queryClient!.queryContractSmart(contractAddress, {
-          get_collection_info_and_extension: {},
-        });
-        console.log("Collection Info:", collectionInfo);
-        let imageUrl = collectionInfo.extension?.image || "";
-        if (imageUrl.startsWith("ipfs://")) {
-          imageUrl = `https://ipfs.io/ipfs/${imageUrl.replace("ipfs://", "")}`;
-        }
-        setCollections([{
-          id: contractAddress,
-          metadata: {
-            name: collectionInfo.name,
-            symbol: collectionInfo.symbol,
-            description: collectionInfo.extension?.description || "",
-            image: imageUrl,
-          },
-        }]);
-      } catch (err: any) {
-        console.error("Error fetching collection info:", err);
-      }
-    }
-    fetchCollectionInfo();
-  }, [queryClient, contractAddress]);
-
-  const handleAmountChange = (collectionId: string, value: string) => {
-    console.log("Amount changed:", collectionId, value);
-    setAmounts((prev) => ({ ...prev, [collectionId]: value === "" ? 0 : parseInt(value) || 0 }));
-  };
-
-  const handleAddToCart = (collection: any) => {
-    const amount = amounts[collection.id] || 1;
-    setCart((prev) => [...prev, collection.id]);
-  };
-
   return (
     <>
       {/* Top-right header for connect/disconnect and cart */}
@@ -400,7 +423,7 @@ export default function Page(): JSX.Element {
             </button>
             <button
               className="bg-red-500 hover:bg-red-600 text-white px-3 py-1 rounded text-xs font-semibold"
-              onClick={logout}
+              onClick={() => setShowModal(false)}
             >
               Disconnect
             </button>
@@ -438,14 +461,14 @@ export default function Page(): JSX.Element {
       {/* Checkout modal/dropdown */}
       {showCheckout && cart.length > 0 && (
         <div className="fixed top-16 right-4 z-50 bg-white rounded-lg shadow-lg p-4 w-80">
-          <div className="mb-2 font-bold text-gray-800">Checkout ({cart.length} NFT{cart.length > 1 ? 's' : ''})</div>
+          <div className="mb-2 font-bold text-gray-800">Checkout ({cart.length} Collection{cart.length > 1 ? 's' : ''})</div>
           <CrossmintHostedCheckout
             className="w-full"
-            lineItems={selectedNfts.map((nft) => ({
+            lineItems={cart.map((collectionId) => ({
               collectionLocator: `crossmint:${collectionId}`,
               callData: {
                 totalPrice: "0.003",
-                amount: amounts[nft.id] || 1,
+                amount: amounts[collectionId] || 1,
               },
             }))}
             appearance={{
@@ -473,7 +496,7 @@ export default function Page(): JSX.Element {
         </div>
       )}
       <main className="m-auto flex min-h-screen max-w-6xl flex-col items-center justify-center gap-4 p-4">
-        <h1 className="text-2xl font-bold tracking-tighter text-white">XION NFT Collection</h1><br /><br />
+        <h1 className="text-2xl font-bold tracking-tighter text-white">XION NFT Collections</h1><br /><br />
         {loading && <div className="text-white">Loading collections...</div>}
         {nftsError && <div className="text-red-500">{nftsError}</div>}
         {account?.bech32Address ? (
@@ -484,12 +507,12 @@ export default function Page(): JSX.Element {
                   <div className="flex items-center justify-center p-6">
                     <div className="rounded-l-2xl">
                       <CollectionPreview
-                        title={collection.metadata.name}
+                        title={collection.metadata?.name || `Collection ${collection.id}`}
                         price={"$1.00"}
-                        imageUrl={collection.metadata.image || "/ledger-pass.svg"}
+                        imageUrl={collection.metadata?.image || "/ledger-pass.svg"}
                         imageSize={200}
-                        imageAlt={collection.metadata.name}
-                        description={collection.metadata.description}
+                        imageAlt={collection.metadata?.name || `Collection ${collection.id}`}
+                        description={collection.metadata?.description || `Crossmint Collection ${collection.id}`}
                       />
                       <div className="mt-4">
                         <input
@@ -501,7 +524,7 @@ export default function Page(): JSX.Element {
                         />
                         <button
                           className="ml-2 bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded text-xs font-semibold"
-                          onClick={() => handleAddToCart(collection)}
+                          onClick={() => handleAddToCart(collection.id)}
                         >
                           Add to Cart
                         </button>
