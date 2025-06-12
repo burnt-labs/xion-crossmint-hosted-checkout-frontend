@@ -37,7 +37,7 @@ Open the `src/app/collections.json` file and add your list of collections in the
 
 1. Clone the repository:
 ```bash
-git clone [repository-url]
+git clone https://github.com/burnt-labs/xion-crossmint-hosted-checkout-frontend.git
 cd xion-crossmint-hosted-checkout-frontend
 ```
 
