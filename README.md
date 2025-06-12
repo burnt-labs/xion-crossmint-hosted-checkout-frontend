@@ -5,7 +5,6 @@ A NFT marketplace that integrates with Crossmint for NFT purchases. This project
 ## Prerequisites
 
 - Node.js 18+ and npm/yarn
-- XION wallet
 - Crossmint API keys (https://www.crossmint.com/console)
 
 ## Environment Variables
