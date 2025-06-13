@@ -2,6 +2,7 @@
 import { useState, useEffect } from "react";
 import {
   useAbstraxionAccount,
+  useAbstraxionSigningClient,
   useAbstraxionClient,
   useModal,
 } from "@burnt-labs/abstraxion";
@@ -70,6 +71,7 @@ function CollectionPreview({
 export default function Page(): JSX.Element {
   // Abstraxion hooks
   const { data: account } = useAbstraxionAccount();
+  const { logout } = useAbstraxionSigningClient();
   const { client: queryClient } = useAbstraxionClient();
 
   // State variables
@@ -152,7 +154,7 @@ export default function Page(): JSX.Element {
             </button>
             <button
               className="bg-red-500 hover:bg-red-600 text-white px-3 py-1 rounded text-xs font-semibold"
-              onClick={() => setShowModal(false)}
+              onClick={() => logout()}
             >
               Disconnect
             </button>
