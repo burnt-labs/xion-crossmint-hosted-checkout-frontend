@@ -170,7 +170,7 @@ export default function Page(): JSX.Element {
         <h1 className="text-2xl font-bold tracking-tighter text-white">XION NFT Collections</h1><br /><br />
         {loading && <div className="text-white">Loading collections...</div>}
         {account?.bech32Address ? (
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6 w-full">
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6 w-full">
             {collections.map((collection) => (
               <div key={collection.id} className="py-8 md:pt-4 relative">
                 <div className="bg-white rounded-2xl shadow-lg border max-w-4xl w-full gap-0">
