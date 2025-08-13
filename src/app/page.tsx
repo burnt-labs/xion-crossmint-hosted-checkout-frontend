@@ -24,10 +24,6 @@ type Collection = {
 const contractAddress = process.env.NEXT_PUBLIC_CONTRACT_ADDRESS || "";
 const crossmintApiKey = process.env.NEXT_PUBLIC_CROSSMINT_API_KEY ?? "";
 
-if (!crossmintApiKey) {
-  throw new Error("NEXT_PUBLIC_CROSSMINT_API_KEY is not set");
-}
-
 function CollectionPreview({
   title,
   price,
@@ -183,39 +179,41 @@ export default function Page(): JSX.Element {
                         imageAlt={collection.metadata?.name || `Collection ${collection.id}`}
                         description={collection.metadata?.description || `Crossmint Collection ${collection.id}`}
                       />
-                      <div className="mt-4">
-                        <CrossmintHostedCheckout
-                          className="w-full"
-                          lineItems={[{
-                            collectionLocator: `crossmint:${collection.id}`,
-                            callData: {
-                              totalPrice: "0.003",
-                              amount: 1,
-                            },
-                          }]}
-                          appearance={{
-                            display: "popup",
-                            overlay: { enabled: true },
-                            theme: { button: "dark", checkout: "light" },
-                          }}
-                          payment={{
-                            crypto: {
-                              enabled: true,
-                              defaultChain: "base-sepolia",
-                              defaultCurrency: "usdc",
-                            },
-                            fiat: {
-                              enabled: true,
-                              defaultCurrency: "usd",
-                            },
-                            receiptEmail: "receipt@crossmint.com",
-                          }}
-                          recipient={{
-                            walletAddress: account?.bech32Address,
-                          }}
-                          locale="en-US"
-                        />
-                      </div>
+                      {crossmintApiKey && (
+                        <div className="mt-4">
+                          <CrossmintHostedCheckout
+                            className="w-full"
+                            lineItems={[{
+                              collectionLocator: `crossmint:${collection.id}`,
+                              callData: {
+                                totalPrice: "0.003",
+                                amount: 1,
+                              },
+                            }]}
+                            appearance={{
+                              display: "popup",
+                              overlay: { enabled: true },
+                              theme: { button: "dark", checkout: "light" },
+                            }}
+                            payment={{
+                              crypto: {
+                                enabled: true,
+                                defaultChain: "base-sepolia",
+                                defaultCurrency: "usdc",
+                              },
+                              fiat: {
+                                enabled: true,
+                                defaultCurrency: "usd",
+                              },
+                              receiptEmail: "receipt@crossmint.com",
+                            }}
+                            recipient={{
+                              walletAddress: account?.bech32Address,
+                            }}
+                            locale="en-US"
+                          />
+                        </div>
+                      )}
                     </div>
                   </div>
                 </div>
