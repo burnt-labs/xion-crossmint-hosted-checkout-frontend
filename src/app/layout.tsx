@@ -17,9 +17,6 @@ const treasuryConfig = {
 };
 
 const crossmintApiKey = process.env.NEXT_PUBLIC_CROSSMINT_API_KEY ?? "";
-if (!crossmintApiKey) {
-  throw new Error("NEXT_PUBLIC_CROSSMINT_API_KEY is not set");
-}
 
 export default function RootLayout({
   children,
@@ -29,12 +26,19 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className={inter.className}>
-        <CrossmintProvider apiKey={crossmintApiKey}>
+        {crossmintApiKey ? (
+          <CrossmintProvider apiKey={crossmintApiKey}>
+            <AbstraxionProvider config={treasuryConfig}>
+              <Abstraxion onClose={() => {}} />
+              {children}
+            </AbstraxionProvider>
+          </CrossmintProvider>
+        ) : (
           <AbstraxionProvider config={treasuryConfig}>
             <Abstraxion onClose={() => {}} />
             {children}
           </AbstraxionProvider>
-        </CrossmintProvider>
+        )}
       </body>
     </html>
   )
