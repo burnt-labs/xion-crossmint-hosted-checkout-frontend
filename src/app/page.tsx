@@ -1,5 +1,6 @@
 "use client";
 import { useState, useEffect } from "react";
+import Image from "next/image";
 import {
   useAbstraxionAccount,
   useAbstraxionSigningClient,
@@ -22,10 +23,6 @@ type Collection = {
 
 const contractAddress = process.env.NEXT_PUBLIC_CONTRACT_ADDRESS || "";
 const crossmintApiKey = process.env.NEXT_PUBLIC_CROSSMINT_API_KEY ?? "";
-
-if (!contractAddress) {
-  throw new Error("CONTRACT_ADDRESS environment variable is not set");
-}
 
 if (!crossmintApiKey) {
   throw new Error("NEXT_PUBLIC_CROSSMINT_API_KEY is not set");
@@ -51,11 +48,11 @@ function CollectionPreview({
       <div className="flex items-center justify-center p-6">
         <div className="rounded-l-2xl flex flex-col items-center">
           <div className="min-h-[200px] flex items-center justify-center">
-            <img
+            <Image
               src={imageUrl}
               alt={imageAlt || title}
-              width={imageSize}
-              height={imageSize}
+              width={imageSize || 200}
+              height={imageSize || 200}
               className="rounded mb-2 object-contain"
             />
           </div>
@@ -154,7 +151,7 @@ export default function Page(): JSX.Element {
             </button>
             <button
               className="bg-red-500 hover:bg-red-600 text-white px-3 py-1 rounded text-xs font-semibold"
-              onClick={() => logout()}
+              onClick={() => logout?.()}
             >
               Disconnect
             </button>
